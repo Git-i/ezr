@@ -1,6 +1,9 @@
 #pragma once 
 #include "assert.hpp"
 #include <cstdint>
+#if __cplusplus >= 201703L
+#include <optional>
+#endif
 #include <type_traits>
 #include <utility>
 namespace ezr
@@ -106,7 +109,6 @@ namespace ezr
             static_assert(std::is_invocable_r_v<R, InValid, const E&>);
             return is_valid ? valid_fn(data) : invalid_fn(error);
         }
-
         /*
         make a `result`
         */
@@ -132,5 +134,23 @@ namespace ezr
             r.is_valid = 0;
             return r;
         }
+
+        #if __cplusplus >= 201703L
+        std::optional<T> to_optional() &&
+        {
+            if(is_valid) return std::make_optional(std::move(data));
+            return std::nullopt;
+        }
+        std::optional<T> to_optional() &
+        {
+            if(is_valid) return std::make_optional(data);
+            return std::nullopt;
+        }
+        const std::optional<T> to_optional() const&
+        {
+            if(is_valid) return std::make_optional(data);
+            return std::nullopt;
+        }
+        #endif
     };
 }

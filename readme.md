@@ -41,6 +41,8 @@ int main()
     if(res) {...}
     if(res.is_err()) {...}
     if(res.has_warning()) {...}
+
+    std::optional<Object*> obj2 = CreateObject().to_optional();
 }
 ```
 It is also possible to provide your own assertion macro to handle errors (default is cassert).
