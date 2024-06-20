@@ -109,28 +109,101 @@ namespace ezr
             static_assert(std::is_invocable_r_v<R, InValid, const E&>);
             return is_valid ? valid_fn(data) : invalid_fn(error);
         }
+
+        /*
+        perform an operation on a value if its valid, and return the option again
+        */
+        template<typename Valid>
+        auto transform(Valid&& valid_fn) &&
+        {
+            static_assert(std::is_invocable_v<Valid, T&&>);
+            using R = std::invoke_result<Valid, T&&>;
+            if(is_valid)
+            {
+                if constexpr (std::is_void_v<R>)
+                {
+                    valid_fn(std::move(data));
+                    return result<R, E>();
+                }
+                else 
+                {
+                    return result<R, E>::ok(valid_fn(std::move(data)));
+                }
+            }
+            else {
+                return result<R, E>::err(std::move(error));
+            }
+            
+        }
+        template<typename Valid>
+        auto transform(Valid&& valid_fn) &
+        {
+            static_assert(std::is_invocable_v<Valid, T&>);
+            using R = std::invoke_result_t<Valid, T&>;
+            if(is_valid)
+            {
+                if constexpr (std::is_void_v<R>)
+                {
+                    valid_fn(data);
+                    return result<R, E>();
+                }
+                else 
+                {
+                    return result<R, E>::ok(valid_fn(data));
+                }
+            }
+            else {
+                return result<R, E>::err(error);
+            }
+            
+        }
+        template<typename Valid>
+        auto transform(Valid&& valid_fn) const&
+        {
+            static_assert(std::is_invocable_v<Valid, const T&>);
+            using R = std::invoke_result<Valid, const T&>;
+            if(is_valid)
+            {
+                if constexpr (std::is_void_v<R>)
+                {
+                    valid_fn(data);
+                    return result<R, E>();
+                }
+                else 
+                {
+                    return result<R, E>::ok(valid_fn(data));
+                }
+            }
+            else {
+                return result<R, E>::err(error);
+            }
+            
+        }
         /*
         make a `result`
         */
-        static result ok(T&& value)
+        template<typename Ty>
+        static result ok(Ty&& value)
         {
             result r;
-            r.data = std::forward<T>(value);
+            r.data = std::forward<Ty>(value);
             r.is_valid = 2;
             return r;
         }
-        static result warn(T&& value, E&& error)
+        template<typename Ty, typename ErrorTy>
+        static result warn(Ty&& value, ErrorTy&& error)
         {
             result r;
-            r.data = std::forward<T>(value);
+            r.data = std::forward<Ty>(value);
             r.is_valid = 1;
-            r.error = std::forward<E>(error);
+            r.error = std::forward<ErrorTy>(error);
             return r;
         }
-        static result err(E&& error)
+        template<typename ErrorTy>
+        static result err(ErrorTy&& error)
         {
             result r;
-            r.error = std::forward<E>(error);
+            r.error = std::forward<ErrorTy>(error);
             r.is_valid = 0;
             return r;
         }
@@ -154,3 +227,4 @@ namespace ezr
         #endif
     };
 }
+
