@@ -15,7 +15,6 @@ namespace ezr
     public:
         /* 
         retrieve the underlying type or fail otherwise
-        can only be used on rvalue references, because the value is moved out of the container
         */
         [[nodiscard]] T&& value() &&
         {
@@ -33,6 +32,19 @@ namespace ezr
             return data;
         }
 
+        [[nodiscard]] T&& operator*() &&
+        {
+            return value();
+        }
+        [[nodiscard]] T& operator*() &
+        {
+            return value();
+        }
+        [[nodiscard]] const T& operator*() const&
+        {
+            return value();
+        }
+
         /*
         retrieve the underlying type or a specified default value
         */
@@ -48,6 +60,7 @@ namespace ezr
         {
             return is_valid ? data : def;
         }
+
 
         /*
         checks for validity
