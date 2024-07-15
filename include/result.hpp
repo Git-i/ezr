@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 #include "assert.hpp"
 #include <cstdint>
 #if __cplusplus >= 201703L
@@ -8,6 +8,26 @@
 #include <utility>
 namespace ezr
 {
+    /*
+    class for constructing results with long type names
+    ezr::result</ *long stuff* />  error = ezr::err<ErrorTy>(val);
+    */
+    template <typename T>
+    class err
+    {
+        T error;
+        template<typename R, typename E> friend class result;
+    public:
+        err(T&& val) : error(std::forward<T>(val)) {}
+    };
+    template <typename T>
+    class ok
+    {
+        T val;
+        template<typename R, typename E> friend class result;
+    public:
+        ok(T&& val) : val(std::forward<T>(val)) {}
+    };
     //struct for handling return values by providing (almost?) no way to retrieve a value without error checking
     template<typename T, typename E>
     class result
@@ -16,7 +36,7 @@ namespace ezr
         E error;
         uint8_t is_valid; //0 if error, 1 if warning, 2 if total success
     public:
-        /* 
+        /*
         retrieve the underlying type or fail otherwise
         */
         [[nodiscard]] T&& value() &&
@@ -141,7 +161,7 @@ namespace ezr
                     valid_fn(std::move(data));
                     return result<R, E>();
                 }
-                else 
+                else
                 {
                     return result<R, E>::ok(valid_fn(std::move(data)));
                 }
@@ -149,7 +169,7 @@ namespace ezr
             else {
                 return result<R, E>::err(std::move(error));
             }
-            
+
         }
         template<typename Valid>
         auto transform(Valid&& valid_fn) &
@@ -163,7 +183,7 @@ namespace ezr
                     valid_fn(data);
                     return result<R, E>();
                 }
-                else 
+                else
                 {
                     return result<R, E>::ok(valid_fn(data));
                 }
@@ -171,7 +191,7 @@ namespace ezr
             else {
                 return result<R, E>::err(error);
             }
-            
+
         }
         template<typename Valid>
         auto transform(Valid&& valid_fn) const&
@@ -185,7 +205,7 @@ namespace ezr
                     valid_fn(data);
                     return result<R, E>();
                 }
-                else 
+                else
                 {
                     return result<R, E>::ok(valid_fn(data));
                 }
@@ -193,7 +213,7 @@ namespace ezr
             else {
                 return result<R, E>::err(error);
             }
-            
+
         }
         /*
         make a `result`
@@ -224,6 +244,17 @@ namespace ezr
             return r;
         }
 
+        result(ezr::err<E>&& err_obj)
+        {
+            is_valid = 0;
+            error = err_obj.error;
+        }
+        result(ezr::ok<T>&& ok_obj)
+        {
+            is_valid = 2;
+            data = ok_obj.val;
+        }
+
         #if __cplusplus >= 201703L
         std::optional<T> to_optional() &&
         {
@@ -242,165 +273,5 @@ namespace ezr
         }
         #endif
     };
-    //return value can only convey error (e.g: initialization)
-    template<typename E>
-    class result<void, E>
-    {
-        E error;
-        bool is_valid;
-    public:
-        [[nodiscard]] E&& err() &&
-        {
-            EZR_ASSERT(!is_valid, "tried to retrieve non-existent error");
-            return std::move(error);
-        }
-        [[nodiscard]] E& err() &
-        {
-            EZR_ASSERT(!is_valid, "tried to retrieve non-existent error");
-            return error;
-        }
-        [[nodiscard]] const E& err() const&
-        {
-            EZR_ASSERT(!is_valid, "tried to retrieve non-existent error");
-            return error;
-        }
 
-        static result ok()
-        {
-            result r;
-            r.is_valid = 2;
-            return r;
-        }
-        template<typename ErrorTy>
-        static result warn(ErrorTy&& error)
-        {
-            result r;
-            r.is_valid = 1;
-            r.error = std::forward<ErrorTy>(error);
-            return r;
-        }
-        template<typename ErrorTy>
-        static result err(ErrorTy&& error)
-        {
-            result r;
-            r.error = std::forward<ErrorTy>(error);
-            r.is_valid = 0;
-            return r;
-        }
-
-        /*
-        handle error or success value with custom function
-        */
-        template<typename R, typename Valid, typename InValid>
-        R handle(Valid&& valid_fn, InValid&& invalid_fn) &&
-        {
-            static_assert(std::is_invocable_r_v<R, Valid>);
-            static_assert(std::is_invocable_r_v<R, InValid, E&&>);
-            return is_valid ? valid_fn() : invalid_fn(std::move(error));
-        }
-        template<typename R, typename Valid, typename InValid>
-        R handle(Valid&& valid_fn, InValid&& invalid_fn) &
-        {
-            static_assert(std::is_invocable_r_v<R, Valid>);
-            static_assert(std::is_invocable_r_v<R, InValid, E&>);
-            return is_valid ? valid_fn() : invalid_fn(error);
-        }
-        template<typename R, typename Valid, typename InValid>
-        R handle(Valid&& valid_fn, InValid&& invalid_fn) const&
-        {
-            static_assert(std::is_invocable_r_v<R, Valid>);
-            static_assert(std::is_invocable_r_v<R, InValid, const E&>);
-            return is_valid ? valid_fn() : invalid_fn(error);
-        }
-
-        /*
-        perform an operation on a value if its valid, and return the option again
-        */
-        template<typename Valid>
-        auto transform(Valid&& valid_fn) &&
-        {
-            static_assert(std::is_invocable_v<Valid>);
-            using R = std::invoke_result<Valid>;
-            if(is_valid)
-            {
-                if constexpr (std::is_void_v<R>)
-                {
-                    valid_fn();
-                    return result<R, E>();
-                }
-                else 
-                {
-                    return result<R, E>::ok(valid_fn());
-                }
-            }
-            else {
-                return result<R, E>::err(std::move(error));
-            }
-            
-        }
-        template<typename Valid>
-        auto transform(Valid&& valid_fn) &
-        {
-            static_assert(std::is_invocable_v<Valid>);
-            using R = std::invoke_result_t<Valid>;
-            if(is_valid)
-            {
-                if constexpr (std::is_void_v<R>)
-                {
-                    valid_fn();
-                    return result<R, E>();
-                }
-                else 
-                {
-                    return result<R, E>::ok(valid_fn());
-                }
-            }
-            else {
-                return result<R, E>::err(error);
-            }
-            
-        }
-        template<typename Valid>
-        auto transform(Valid&& valid_fn) const&
-        {
-            static_assert(std::is_invocable_v<Valid>);
-            using R = std::invoke_result<Valid>;
-            if(is_valid)
-            {
-                if constexpr (std::is_void_v<R>)
-                {
-                    valid_fn();
-                    return result<R, E>();
-                }
-                else 
-                {
-                    return result<R, E>::ok(valid_fn());
-                }
-            }
-            else {
-                return result<R, E>::err(error);
-            }
-            
-        }
-
-        [[nodiscard]] bool is_ok() const
-        {
-            return is_valid;
-        }
-        [[nodiscard]] bool has_warning() const
-        {
-            return is_valid == 1;
-        }
-        [[nodiscard]] bool is_err() const
-        {
-            return !is_valid;
-        }
-        [[nodiscard]] operator bool() const
-        {
-            return is_valid;
-        }
-
-    };
-    //error cant be void
 }
-
