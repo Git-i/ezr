@@ -35,6 +35,7 @@ namespace ezr
         T data;
         E error;
         uint8_t is_valid; //0 if error, 1 if warning, 2 if total success
+        result() : is_valid(false) {}
     public:
         /*
         retrieve the underlying type or fail otherwise
