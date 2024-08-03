@@ -37,6 +37,8 @@ namespace ezr
         uint8_t is_valid; //0 if error, 1 if warning, 2 if total success
         result() : is_valid(false) {}
     public:
+        using ValidTy = T;
+        using ErrorTy = E;
         /*
         retrieve the underlying type or fail otherwise
         */
