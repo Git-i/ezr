@@ -18,7 +18,8 @@ namespace ezr
         T error;
         template<typename R, typename E> friend class result;
     public:
-        err(T&& val) : error(std::forward<T>(val)) {}
+        err(T&& val) : error(val) {}
+        err(const T& val) : error(val) {}
     };
     template <typename T>
     class ok
@@ -26,7 +27,8 @@ namespace ezr
         T val;
         template<typename R, typename E> friend class result;
     public:
-        ok(T&& val) : val(std::forward<T>(val)) {}
+        ok(T&& val) : val(val) {}
+        ok(const T& val) : val(val) {}
     };
     //struct for handling return values by providing (almost?) no way to retrieve a value without error checking
     template<typename T, typename E>
