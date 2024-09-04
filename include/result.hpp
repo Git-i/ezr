@@ -37,8 +37,8 @@ namespace ezr
         T data;
         E error;
         uint8_t is_valid; //0 if error, 1 if warning, 2 if total success
-        result() : is_valid(false) {}
     public:
+        result() : is_valid(false) {}
         using ValidTy = T;
         using ErrorTy = E;
         /*
@@ -161,7 +161,7 @@ namespace ezr
         auto transform(Valid&& valid_fn) &&
         {
             static_assert(std::is_invocable_v<Valid, T&&>);
-            using R = std::invoke_result<Valid, T&&>;
+            using R = std::invoke_result_t<Valid, T&&>;
             if(is_valid)
             {
                 if constexpr (std::is_void_v<R>)
