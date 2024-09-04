@@ -129,25 +129,28 @@ namespace ezr
         /*
         handle error or success value with custom function
         */
-        template<typename R, typename Valid, typename InValid>
-        R handle(Valid&& valid_fn, InValid&& invalid_fn) &&
+        template<typename Valid, typename InValid>
+        auto handle(Valid&& valid_fn, InValid&& invalid_fn) &&
         {
-            static_assert(std::is_invocable_r_v<R, Valid, T&&>);
-            static_assert(std::is_invocable_r_v<R, InValid, E&&>);
+            static_assert(std::is_same_v<
+                std::invoke_result_t<Valid, T&&>, 
+                std::invoke_result_t<InValid, E&&>>);
             return is_valid ? valid_fn(std::move(data)) : invalid_fn(std::move(error));
         }
-        template<typename R, typename Valid, typename InValid>
-        R handle(Valid&& valid_fn, InValid&& invalid_fn) &
+        template<typename Valid, typename InValid>
+        auto handle(Valid&& valid_fn, InValid&& invalid_fn) &
         {
-            static_assert(std::is_invocable_r_v<R, Valid, T&>);
-            static_assert(std::is_invocable_r_v<R, InValid, E&>);
+            static_assert(std::is_same_v<
+                std::invoke_result_t<Valid, T&>, 
+                std::invoke_result_t<InValid, E&>>);
             return is_valid ? valid_fn(data) : invalid_fn(error);
         }
         template<typename R, typename Valid, typename InValid>
-        R handle(Valid&& valid_fn, InValid&& invalid_fn) const&
+        auto handle(Valid&& valid_fn, InValid&& invalid_fn) const&
         {
-            static_assert(std::is_invocable_r_v<R, Valid, const T&>);
-            static_assert(std::is_invocable_r_v<R, InValid, const E&>);
+            static_assert(std::is_same_v<
+                std::invoke_result_t<Valid, const T&>, 
+                std::invoke_result_t<InValid, const E&>>);
             return is_valid ? valid_fn(data) : invalid_fn(error);
         }
 
