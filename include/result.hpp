@@ -1,6 +1,7 @@
 #pragma once
 #include "assert.hpp"
 #include <cstdint>
+#include <functional>
 #if __cplusplus >= 201703L
 #include <optional>
 #endif
@@ -145,7 +146,7 @@ namespace ezr
                 std::invoke_result_t<InValid, E&>>);
             return is_valid ? valid_fn(data) : invalid_fn(error);
         }
-        template<typename R, typename Valid, typename InValid>
+        template<typename Valid, typename InValid>
         auto handle(Valid&& valid_fn, InValid&& invalid_fn) const&
         {
             static_assert(std::is_same_v<
@@ -154,6 +155,21 @@ namespace ezr
             return is_valid ? valid_fn(data) : invalid_fn(error);
         }
 
+        template<typename Valid>
+        auto if_valid(Valid&& valid_fn) &&
+        {
+            return std::invoke(valid_fn, std::move(data));
+        }
+        template<typename Valid>
+        auto if_valid(Valid&& valid_fn) &
+        {
+            return std::invoke(valid_fn, data);
+        }
+        template<typename Valid>
+        auto if_valid(Valid&& valid_fn) const&
+        {
+            return std::invoke(valid_fn, data);
+        }
         /*
         perform an operation on a value if its valid, and return the option again
         */
