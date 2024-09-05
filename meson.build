@@ -6,3 +6,4 @@ includes = [
 inc_dir = include_directories(includes)
 test = executable('tests', 'test.cpp')
 ezr_dep = declare_dependency(include_directories: inc_dir)
+meson.override_dependency('ezr', ezr_dep)
