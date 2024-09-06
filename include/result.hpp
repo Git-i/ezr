@@ -278,7 +278,16 @@ namespace ezr
             is_valid = 2;
             data = ok_obj.val;
         }
-
+        result(T&& ok_obj)
+        {
+            is_valid = 2;
+            data = ok_obj;
+        }
+        result(const T& ok_obj)
+        {
+            is_valid = 2;
+            data = ok_obj;
+        }
         #if __cplusplus >= 201703L
         std::optional<T> to_optional() &&
         {
