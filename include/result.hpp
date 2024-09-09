@@ -281,7 +281,7 @@ namespace ezr
         result(T&& ok_obj)
         {
             is_valid = 2;
-            data = ok_obj;
+            data = std::move(ok_obj);
         }
         result(const T& ok_obj)
         {
