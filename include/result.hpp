@@ -2,13 +2,36 @@
 #include "assert.hpp"
 #include <cstdint>
 #include <functional>
-#if __cplusplus >= 201703L
 #include <optional>
-#endif
+#include <string>
 #include <type_traits>
 #include <utility>
+
+
+
 namespace ezr
 {
+    template<typename ErrorTy>
+    class error_logger{};
+
+    template<>
+    class error_logger<std::string>
+    {
+        static std::string get_message(const std::string& error) { return error; }
+    };
+
+    template <typename T>
+    using logged_error_t = decltype(error_logger<T>::get_message(std::declval<const T&>()));
+
+    template <typename T, typename = std::void_t<>>
+    struct has_error_logger : std::false_type{};
+
+    template <typename T>
+    struct has_error_logger<T, std::void_t<logged_error_t<T>>>:
+                            std::true_type{};
+
+    template <typename T>
+    inline constexpr bool has_error_logger_v = has_error_logger<T>::value;
     /*
     class for constructing results with long type names
     ezr::result</ *long stuff* />  error = ezr::err<ErrorTy>(val);
@@ -35,11 +58,26 @@ namespace ezr
     template<typename T, typename E>
     class result
     {
-        T data;
-        E error;
+        union
+        {
+            T data;
+            E error;
+        };
         uint8_t is_valid; //0 if error, 1 if warning, 2 if total success
     public:
-        result() : is_valid(false) {}
+        result() : error(), is_valid(0) {}
+        result(const result& r)
+        {
+            if (r.is_valid) new(&data) T(r.data);
+            else new(&error) E(r.error);
+            is_valid = r.is_valid;
+        }
+        result(result&& r) noexcept
+        {
+            if (r.is_valid) new(&data) T(std::move(r.data));
+            else new(&error) E(std::move(r.error));
+            is_valid = r.is_valid;
+        }
         using ValidTy = T;
         using ErrorTy = E;
         /*
@@ -47,16 +85,28 @@ namespace ezr
         */
         [[nodiscard]] T&& value() &&
         {
+            if constexpr (has_error_logger_v<E>)
+            {
+                EZR_ASSERT(is_valid, ("Operation failed: " + error_logger<E>::get_message()).c_str());
+            }
             EZR_ASSERT(is_valid, "tried to unwrap error value");
             return std::move(data);
         }
         [[nodiscard]] T& value() &
         {
+            if constexpr (has_error_logger_v<E>)
+            {
+                EZR_ASSERT(is_valid, ("Operation failed: " + error_logger<E>::get_message()).c_str());
+            }
             EZR_ASSERT(is_valid, "tried to unwrap error value");
             return data;
         }
         [[nodiscard]] const T& value() const&
         {
+            if constexpr (has_error_logger_v<E>)
+            {
+                EZR_ASSERT(is_valid, ("Operation failed: " + error_logger<E>::get_message()).c_str());
+            }
             EZR_ASSERT(is_valid, "tried to unwrap error value");
             return data;
         }
@@ -122,7 +172,7 @@ namespace ezr
         {
             return !is_valid;
         }
-        [[nodiscard]] operator bool() const
+        [[nodiscard]] explicit operator bool() const
         {
             return is_valid;
         }
@@ -242,28 +292,19 @@ namespace ezr
         /*
         make a `result`
         */
-        template<typename Ty>
-        static result ok(Ty&& value)
+        template<typename... Params>
+        static result ok(Params&&... value)
         {
             result r;
-            r.data = std::forward<Ty>(value);
+            new (&r.data) T(std::forward<Params>(value)...);
             r.is_valid = 2;
             return r;
         }
-        template<typename Ty, typename ErrorTy>
-        static result warn(Ty&& value, ErrorTy&& error)
+        template<typename... Params>
+        static result err(Params&&... error)
         {
             result r;
-            r.data = std::forward<Ty>(value);
-            r.is_valid = 1;
-            r.error = std::forward<ErrorTy>(error);
-            return r;
-        }
-        template<typename ErrorTy>
-        static result err(ErrorTy&& error)
-        {
-            result r;
-            r.error = std::forward<ErrorTy>(error);
+            new (&r.error) E(std::forward<Params>(error)...);
             r.is_valid = 0;
             return r;
         }
@@ -271,24 +312,28 @@ namespace ezr
         result(ezr::err<E>&& err_obj)
         {
             is_valid = 0;
-            error = err_obj.error;
+            new (&error) E(err_obj.error);
         }
         result(ezr::ok<T>&& ok_obj)
         {
             is_valid = 2;
-            data = ok_obj.val;
+            new (&data) T(ok_obj.val);
         }
         result(T&& ok_obj)
         {
             is_valid = 2;
-            data = std::move(ok_obj);
+            new (&data) T(std::move(ok_obj));
         }
         result(const T& ok_obj)
         {
             is_valid = 2;
-            data = ok_obj;
+            new(&data) T(ok_obj);
         }
-        #if __cplusplus >= 201703L
+        ~result()
+        {
+            if(is_valid == 0) error.~E();
+            else data.~T();
+        }
         std::optional<T> to_optional() &&
         {
             if(is_valid) return std::make_optional(std::move(data));
@@ -299,12 +344,11 @@ namespace ezr
             if(is_valid) return std::make_optional(data);
             return std::nullopt;
         }
-        const std::optional<T> to_optional() const&
+        std::optional<T> to_optional() const&
         {
             if(is_valid) return std::make_optional(data);
             return std::nullopt;
         }
-        #endif
     };
 
 }
