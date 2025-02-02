@@ -87,7 +87,7 @@ namespace ezr
         }
         result& operator=(result&& r) noexcept
         {
-            if (r.is_valid) data = std::move(r.data);
+            if (r.is_valid) if (is_valid) data = std::move(r.data); else new(&data) T(std::move(r.data));
             else error =std::move(r.error);
             is_valid = r.is_valid;
             return *this;
